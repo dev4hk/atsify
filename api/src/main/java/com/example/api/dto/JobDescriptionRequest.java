@@ -6,5 +6,4 @@ import lombok.Data;
 public class JobDescriptionRequest {
     private String jobDescription;
     private String role;
-    private String company;
 }
