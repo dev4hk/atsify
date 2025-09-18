@@ -17,16 +17,23 @@ export const api = axios.create({
 });
 
 export async function analyzeResume(
-  file: File,
-  job: JobDescriptionRequest
+    file: File,
+    job: JobDescriptionRequest
 ): Promise<ResumeAnalysisResponse> {
   const form = new FormData();
   form.append("file", file);
-  form.append(
-    "job",
-    new Blob([JSON.stringify(job)], { type: "application/json" })
-  );
+  form.append("job", new Blob([JSON.stringify(job)], { type: "application/json" }));
 
   const { data } = await api.post("/api/resume/analyze", form);
   return data;
+}
+
+export interface ContactMessageRequest {
+  name: string;
+  email: string;
+  message: string;
+}
+
+export async function sendContactMessage(payload: ContactMessageRequest): Promise<void> {
+  await api.post("/api/contact", payload);
 }

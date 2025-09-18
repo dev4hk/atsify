@@ -5,3 +5,18 @@ spring:
       chat:
         options:
           model: mistral:latest
+  mail:
+    host: localhost
+    port: 1025
+    username: ${TEST_MAIL_USERNAME}
+    password: ${TEST_MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          trust: "*"
+        auth: true
+        starttls:
+          enabled: true
+        connectiontimeout: 5000
+        timeout: 3000
+        writetimeout: 5000
