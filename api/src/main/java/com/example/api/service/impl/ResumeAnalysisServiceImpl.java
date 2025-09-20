@@ -2,6 +2,7 @@ package com.example.api.service.impl;
 
 import com.example.api.dto.JobDescriptionRequest;
 import com.example.api.dto.ResumeAnalysisResponse;
+import com.example.api.exception.AnalysisException;
 import com.example.api.service.IResumeAnalysisService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -18,10 +19,15 @@ public class ResumeAnalysisServiceImpl implements IResumeAnalysisService {
     public ResumeAnalysisResponse analyze(String resumeText, JobDescriptionRequest jobRequest) {
         String prompt = buildPrompt(resumeText, jobRequest);
 
-        String aiResponse = chatClient.prompt()
-                .user(prompt)
-                .call()
-                .content();
+        String aiResponse;
+        try {
+            aiResponse = chatClient.prompt()
+                    .user(prompt)
+                    .call()
+                    .content();
+        } catch (Exception e) {
+            throw new AnalysisException("AI provider failed to return a response", e);
+        }
 
         String jsonString = extractJson(aiResponse);
 
@@ -29,7 +35,7 @@ public class ResumeAnalysisServiceImpl implements IResumeAnalysisService {
         try {
             return objectMapper.readValue(jsonString, ResumeAnalysisResponse.class);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to analyze resume", e);
+            throw new AnalysisException("Failed to parse AI analysis response", e);
         }
     }
 

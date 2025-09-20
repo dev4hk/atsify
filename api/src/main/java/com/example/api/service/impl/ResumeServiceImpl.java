@@ -1,5 +1,7 @@
 package com.example.api.service.impl;
 
+import com.example.api.exception.ResumeParseException;
+import com.example.api.exception.UnsupportedFileTypeException;
 import com.example.api.service.IResumeService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.Loader;
@@ -22,7 +24,7 @@ public class ResumeServiceImpl implements IResumeService {
         try {
             String filename = file.getOriginalFilename();
             if (filename == null) {
-                throw new IllegalArgumentException("File must have a name");
+                throw new UnsupportedFileTypeException("File must have a name");
             }
 
             if (filename.endsWith(".pdf")) {
@@ -30,11 +32,13 @@ public class ResumeServiceImpl implements IResumeService {
             } else if (filename.endsWith(".docx")) {
                 return extractFromDocx(file.getInputStream());
             } else {
-                throw new IllegalArgumentException("Unsupported file type. Only PDF and DOCX are allowed.");
+                throw new UnsupportedFileTypeException("Unsupported file type. Only PDF and DOCX are allowed.");
             }
+        } catch (UnsupportedFileTypeException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error extracting resume text", e);
-            throw new RuntimeException("Failed to extract resume text");
+            throw new ResumeParseException("Failed to extract resume text", e);
         }
     }
 

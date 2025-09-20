@@ -1,46 +1,33 @@
-// ui/src/components/ContactPage.tsx
 import { Card } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Mail, Phone, MapPin, Github, Linkedin, Twitter, Info } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
-import { sendContactMessage } from "@/lib/api";
+import { getErrorMessage, api } from "@/lib/api";
+import { Form, useActionData, useNavigation } from "react-router-dom";
 
 const ContactPage = () => {
-    const [submitting, setSubmitting] = useState(false);
+    const [errors, setErrors] = useState<Record<string, string>>({});
+    const actionData = useActionData() as any;
+    const navigation = useNavigation();
+    const isSubmitting = navigation.state === "submitting";
+    const formRef = useRef<HTMLFormElement | null>(null);
 
-    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        if (submitting) return;
-        const formEl = e.currentTarget as HTMLFormElement; // capture before await (SyntheticEvent pooling)
-        const form = new FormData(formEl);
-        const name = String(form.get("name") || "").trim();
-        const email = String(form.get("email") || "").trim();
-        const message = String(form.get("message") || "").trim();
-
-        if (!name || !email || !message) {
-            toast.error("Please fill in all fields.");
-            return;
-        }
-
-        try {
-            setSubmitting(true);
-            await sendContactMessage({ name, email, message });
+    useEffect(() => {
+        if (!actionData) return;
+        if (actionData.success) {
             toast.success("Message sent! We'll get back to you soon.");
-            formEl.reset();
-        } catch (err: any) {
-            const msg =
-                err?.response?.data?.message ||
-                err?.message ||
-                "Failed to send message. Please try again later.";
-            toast.error(msg);
-        } finally {
-            setSubmitting(false);
+            formRef.current?.reset();
+            setErrors({});
+        } else if (actionData.errors) {
+            setErrors(actionData.errors);
+        } else if (actionData.errorMessage) {
+            toast.error(actionData.errorMessage);
         }
-    };
+    }, [actionData]);
 
     return (
         <div className="px-4 text-white">
@@ -85,7 +72,7 @@ const ContactPage = () => {
                         <div className="p-6">
                             <h2 className="text-2xl font-semibold text-indigo-300">Send us a message</h2>
                             <p className="text-gray-300 text-sm mb-4">We'll get back within 1–2 business days.</p>
-                            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <Form method="post" className="grid grid-cols-1 md:grid-cols-2 gap-4" ref={formRef}>
                                 <div className="md:col-span-1">
                                     <label className="text-sm text-gray-300" htmlFor="name">
                                         Name
@@ -93,6 +80,9 @@ const ContactPage = () => {
                                     <div className="gradient-field mt-1">
                                         <Input id="name" name="name" required className="gradient-input w-full text-gray-200" />
                                     </div>
+                                    {errors["name"] && (
+                                        <div className="text-xs text-red-400 mt-1">{errors["name"]}</div>
+                                    )}
                                 </div>
                                 <div className="md:col-span-1">
                                     <label className="text-sm text-gray-300" htmlFor="email">
@@ -107,6 +97,9 @@ const ContactPage = () => {
                                             className="gradient-input w-full text-gray-200"
                                         />
                                     </div>
+                                    {errors["email"] && (
+                                        <div className="text-xs text-red-400 mt-1">{errors["email"]}</div>
+                                    )}
                                 </div>
                                 <div className="md:col-span-2">
                                     <label className="text-sm text-gray-300" htmlFor="message">
@@ -121,17 +114,20 @@ const ContactPage = () => {
                                             className="gradient-input native-scrollbar w-full text-gray-200 h-[8rem] overflow-y-auto resize-none"
                                         />
                                     </div>
+                                    {errors["message"] && (
+                                        <div className="text-xs text-red-400 mt-1">{errors["message"]}</div>
+                                    )}
                                 </div>
                                 <div className="md:col-span-2 flex justify-end">
                                     <Button
                                         type="submit"
-                                        disabled={submitting}
+                                        disabled={isSubmitting}
                                         className="text-white border border-cyan-500/30 bg-gradient-to-r from-cyan-500/80 via-indigo-500/80 to-fuchsia-500/80 hover:from-cyan-500 hover:via-indigo-500 hover:to-fuchsia-500"
                                     >
-                                        {submitting ? "Sending..." : "Send Message"}
+                                        {isSubmitting ? "Sending..." : "Send Message"}
                                     </Button>
                                 </div>
-                            </form>
+                            </Form>
                         </div>
                     </Card>
                 </div>
@@ -175,3 +171,22 @@ const ContactPage = () => {
 };
 
 export default ContactPage;
+
+export async function contactAction({ request }: { request: Request }) {
+    const data = await request.formData();
+    const payload = {
+        name: String(data.get("name") || "").trim(),
+        email: String(data.get("email") || "").trim(),
+        message: String(data.get("message") || "").trim(),
+    };
+    try {
+        await api.post("/api/contact", payload, { headers: { "X-Suppress-Error-Toast": true } });
+        return { success: true };
+    } catch (error: any) {
+        if (error.response?.status === 400 && error.response?.data && typeof error.response.data === 'object') {
+            // Validation map from backend
+            return { success: false, errors: error.response.data };
+        }
+        return { success: false, errorMessage: getErrorMessage(error) };
+    }
+}

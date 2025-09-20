@@ -2,6 +2,7 @@ package com.example.api.service.impl;
 
 import com.example.api.dto.ContactMessageRequest;
 import com.example.api.email.EmailService;
+import com.example.api.exception.EmailSendException;
 import com.example.api.service.IContactService;
 import jakarta.mail.MessagingException;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +38,7 @@ public class ContactServiceImpl implements IContactService {
             );
         } catch (MessagingException e) {
             log.error("Failed to send contact email: {}", e.getMessage(), e);
+            throw new EmailSendException("Failed to send contact email", e);
         }
     }
 }

@@ -1,16 +1,15 @@
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLoaderData, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card.tsx";
 import { Button } from "@/components/ui/button";
 import { toast } from "react-toastify";
 
 const ResultPage = () => {
-    const location = useLocation();
+    const analysis = useLoaderData() as any;
     const navigate = useNavigate();
-    const analysis = (location.state as any)?.analysis;
 
     if (!analysis) {
-        navigate("/error", { state: { message: "You cannot access this page directly." } });
+        navigate("/analyze");
         return null;
     }
 
@@ -197,3 +196,16 @@ const ResultPage = () => {
 };
 
 export default ResultPage;
+
+export function resultLoader({ request }: { request: Request }) {
+    const url = new URL(request.url);
+    const key = url.searchParams.get("key");
+    if (!key) return null;
+    const raw = sessionStorage.getItem(`analysis:${key}`);
+    if (!raw) return null;
+    try {
+        return JSON.parse(raw);
+    } catch {
+        return null;
+    }
+}
