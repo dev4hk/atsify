@@ -1,4 +1,4 @@
-import {useEffect, useRef, useState} from "react";
+import {type ChangeEvent, useEffect, useRef, useState} from "react";
 import {Card} from "@/components/ui/card";
 import {Button} from "@/components/ui/button";
 import {Input} from "@/components/ui/input";
@@ -47,6 +47,45 @@ const AnalyzePage = () => {
             });
         }
     };
+
+    const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0] ?? null;
+        if (file) {
+            const validMime = /^(application\/pdf|application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document|application\/msword)$/i.test(file.type);
+            const validExt = /\.(pdf|docx?)$/i.test(file.name);
+            if (!validMime && !validExt) {
+                toast.error("Please upload a PDF or DOC/DOCX file.");
+                e.currentTarget.value = "";
+                setResumeFile(null);
+                return;
+            }
+        }
+        setResumeFile(file);
+    }
+
+    const handleDrop = (e: React.DragEvent<HTMLLabelElement>) => {
+        e.preventDefault();
+        const file = e.dataTransfer.files?.[0];
+        if (!file) return;
+
+        const validMime = /^(application\/pdf|application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document|application\/msword)$/i.test(file.type);
+        const validExt = /\.(pdf|docx?)$/i.test(file.name);
+
+        if (!validMime && !validExt) {
+            toast.error("Please upload a PDF or DOC/DOCX file.");
+            return;
+        }
+
+        setResumeFile(file);
+
+        const input = document.getElementById("resume-upload") as HTMLInputElement | null;
+        if (input) {
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            input.files = dt.files;
+        }
+    };
+
 
     return (
         <div className="flex flex-col items-center justify-center min-h-[70vh] w-full px-4">
@@ -114,22 +153,8 @@ const AnalyzePage = () => {
                             type="file"
                             accept=".pdf,.doc,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword"
                             name="file"
-                            onChange={(e) => {
-                                const file = e.target.files?.[0] ?? null;
-                                if (file) {
-                                    const validMime = /^(application\/pdf|application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document|application\/msword)$/i.test(file.type);
-                                    const validExt = /\.(pdf|docx?)$/i.test(file.name);
-                                    if (!validMime && !validExt) {
-                                        toast.error("Please upload a PDF or DOC/DOCX file.");
-                                        e.currentTarget.value = "";
-                                        setResumeFile(null);
-                                        return;
-                                    }
-                                }
-                                setResumeFile(file);
-                            }}
+                            onChange={(e) => handleFileChange(e)}
                             className="hidden"
-                            required
                         />
 
                         <label
@@ -138,18 +163,7 @@ const AnalyzePage = () => {
                                 e.preventDefault();
                                 e.stopPropagation();
                             }}
-                            onDrop={(e) => {
-                                e.preventDefault();
-                                const file = e.dataTransfer.files?.[0];
-                                if (!file) return;
-                                const validMime = /^(application\/pdf|application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document|application\/msword)$/i.test(file.type);
-                                const validExt = /\.(pdf|docx?)$/i.test(file.name);
-                                if (!validMime && !validExt) {
-                                    toast.error("Please upload a PDF or DOC/DOCX file.");
-                                    return;
-                                }
-                                setResumeFile(file);
-                            }}
+                            onDrop={(e) => handleDrop(e)}
                             className="cursor-pointer flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-gray-600 bg-gray-900/60 px-6 py-12 hover:border-cyan-500/60 hover:bg-gray-900/70 transition"
                         >
                             <UploadCloud className="h-8 w-8 text-cyan-300"/>
