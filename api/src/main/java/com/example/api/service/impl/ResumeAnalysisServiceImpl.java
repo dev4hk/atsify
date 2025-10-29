@@ -1,20 +1,34 @@
 package com.example.api.service.impl;
 
+import com.example.api.dto.Category;
 import com.example.api.dto.JobDescriptionRequest;
 import com.example.api.dto.ResumeAnalysisResponse;
+import com.example.api.dto.Tip;
 import com.example.api.exception.AnalysisException;
 import com.example.api.service.IResumeAnalysisService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Recover;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ResumeAnalysisServiceImpl implements IResumeAnalysisService {
 
     private final ChatClient chatClient;
 
     @Override
+    @Retryable(
+            retryFor = {AnalysisException.class},
+            maxAttempts = 3,
+            backoff = @Backoff(delay = 1500)
+    )
     public ResumeAnalysisResponse analyze(String resumeText, JobDescriptionRequest jobRequest) {
         String prompt = buildPrompt(resumeText, jobRequest);
 
@@ -102,6 +116,23 @@ public class ResumeAnalysisServiceImpl implements IResumeAnalysisService {
                 jobRequest.getJobDescription(),
                 AIResponseFormat,
                 resumeText
+        );
+    }
+
+    @Recover
+    public ResumeAnalysisResponse recover(AnalysisException e, String resumeText, JobDescriptionRequest jobRequest) {
+        log.error("AI Analysis failed after max retries. Returning a safe default response.", e);
+
+        Tip unavailableTip = new Tip("improve", "Service Unavailable", "The AI analysis service is currently down or unresponsive. Please try again later for a full report.");
+        Category defaultCategory = new Category(0, List.of(unavailableTip));
+
+        return new ResumeAnalysisResponse(
+                0,
+                defaultCategory,
+                defaultCategory,
+                defaultCategory,
+                defaultCategory,
+                defaultCategory
         );
     }
 }
