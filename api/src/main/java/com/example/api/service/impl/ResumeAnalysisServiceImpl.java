@@ -4,7 +4,6 @@ import com.example.api.dto.JobDescriptionRequest;
 import com.example.api.dto.ResumeAnalysisResponse;
 import com.example.api.exception.AnalysisException;
 import com.example.api.service.IResumeAnalysisService;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
@@ -19,23 +18,13 @@ public class ResumeAnalysisServiceImpl implements IResumeAnalysisService {
     public ResumeAnalysisResponse analyze(String resumeText, JobDescriptionRequest jobRequest) {
         String prompt = buildPrompt(resumeText, jobRequest);
 
-        String aiResponse;
         try {
-            aiResponse = chatClient.prompt()
+            return chatClient.prompt()
                     .user(prompt)
                     .call()
-                    .content();
+                    .entity(ResumeAnalysisResponse.class);
         } catch (Exception e) {
             throw new AnalysisException("AI provider failed to return a response", e);
-        }
-
-        String jsonString = extractJson(aiResponse);
-
-        ObjectMapper objectMapper = new ObjectMapper();
-        try {
-            return objectMapper.readValue(jsonString, ResumeAnalysisResponse.class);
-        } catch (Exception e) {
-            throw new AnalysisException("Failed to parse AI analysis response", e);
         }
     }
 
@@ -114,14 +103,5 @@ public class ResumeAnalysisServiceImpl implements IResumeAnalysisService {
                 AIResponseFormat,
                 resumeText
         );
-    }
-
-    private String extractJson(String aiResponse) {
-        int start = aiResponse.indexOf("{");
-        int end = aiResponse.lastIndexOf("}");
-        if (start >= 0 && end >= 0 && end > start) {
-            return aiResponse.substring(start, end + 1);
-        }
-        return aiResponse;
     }
 }
