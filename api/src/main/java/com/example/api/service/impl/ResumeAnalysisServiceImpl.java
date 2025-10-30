@@ -9,6 +9,8 @@ import com.example.api.service.IResumeAnalysisService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Recover;
 import org.springframework.retry.annotation.Retryable;
@@ -23,99 +25,28 @@ public class ResumeAnalysisServiceImpl implements IResumeAnalysisService {
 
     private final ChatClient chatClient;
 
+    @Value("classpath:prompts/resume-analysis.st")
+    private Resource resumeAnalysisPrompt;
+
     @Override
-    @Retryable(
-            retryFor = {AnalysisException.class},
-            maxAttempts = 3,
-            backoff = @Backoff(delay = 1500)
-    )
+    @Retryable(/* ... */)
     public ResumeAnalysisResponse analyze(String resumeText, JobDescriptionRequest jobRequest) {
-        String prompt = buildPrompt(resumeText, jobRequest);
+
+        String role = jobRequest.getRole() != null ? jobRequest.getRole() : "";
 
         try {
             return chatClient.prompt()
-                    .user(prompt)
+                    .user(promptTemplateSpec ->
+                                    promptTemplateSpec.text(resumeAnalysisPrompt)
+                                            .param("role", role)
+                                            .param("jobDescription", jobRequest.getJobDescription())
+                                            .param("resumeText", resumeText)
+                    )
                     .call()
                     .entity(ResumeAnalysisResponse.class);
         } catch (Exception e) {
-            throw new AnalysisException("AI provider failed to return a response", e);
+            throw new AnalysisException("AI analysis failed: communication error or malformed structured output.", e);
         }
-    }
-
-    private String buildPrompt(String resumeText, JobDescriptionRequest jobRequest) {
-        String AIResponseFormat = """
-                {
-                  "overallScore": number, // max 100
-                  "ats": {
-                    "score": number, // rate based on ATS suitability (0–100)
-                    "tips": [
-                      {
-                        "type": "good" | "improve",
-                        "tip": "string", // short title
-                        "explanation": "string" //explain in detail here
-                      }
-                    ] // give 3–4 tips
-                  },
-                  "toneAndStyle": {
-                    "score": number, // max 100
-                    "tips": [
-                      {
-                        "type": "good" | "improve",
-                        "tip": "string", //make it a short "title" for the actual explanation
-                        "explanation": "string" //explain in detail here
-                      }
-                    ] // give 3–4 tips
-                  },
-                  "content": {
-                    "score": number, // max 100
-                    "tips": [
-                      {
-                        "type": "good" | "improve",
-                        "tip": "string", //make it a short "title" for the actual explanation
-                        "explanation": "string" //explain in detail here
-                      }
-                    ] // give 3–4 tips
-                  },
-                  "structure": {
-                    "score": number, // max 100
-                    "tips": [
-                      {
-                        "type": "good" | "improve",
-                        "tip": "string", //make it a short "title" for the actual explanation
-                        "explanation": "string" //explain in detail here
-                      }
-                    ] // give 3–4 tips
-                  },
-                  "skills": {
-                    "score": number, // max 100
-                    "tips": [
-                      {
-                        "type": "good" | "improve",
-                        "tip": "string", //make it a short "title" for the actual explanation
-                        "explanation": "string" //explain in detail here
-                      }
-                    ] // give 3–4 tips
-                  }
-                }""";
-
-        return String.format("""
-                        You are an expert in ATS (Applicant Tracking System) and resume analysis.
-                        Please analyze and rate this resume and suggest how to improve it.
-                        The rating can be low if the resume is bad. Be thorough and detailed.
-                        Don't be afraid to point out any mistakes or areas for improvement.
-                        If there is a lot to improve, don't hesitate to give low scores.
-                        If available, use the job description for the job user is applying to to give more detailed feedback.
-                        The job title is: %s
-                        The job description is: %s
-                        Provide the feedback using the following format: %s
-                        The resume is: %s
-                        Your response must be data in JSON format only, without any leading or trailing text before and after the JSON data.
-                        """,
-                jobRequest.getRole() != null ? jobRequest.getRole() : "",
-                jobRequest.getJobDescription(),
-                AIResponseFormat,
-                resumeText
-        );
     }
 
     @Recover
