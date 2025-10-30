@@ -20,3 +20,23 @@ spring:
         connectiontimeout: 5000
         timeout: 3000
         writetimeout: 5000
+  docker:
+    compose:
+      stop:
+        command: down
+      file: api/compose.yml
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "health,metrics,prometheus"
+  tracing:
+    sampling:
+      probability: 0.1
+  metrics:
+    tags:
+      application: ${spring.application.name:api}
+opentelemetry:
+  exporter:
+    otlp:
+      endpoint: http://localhost:4317
