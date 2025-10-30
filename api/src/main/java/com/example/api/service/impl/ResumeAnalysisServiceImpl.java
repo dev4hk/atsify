@@ -109,8 +109,7 @@ public class ResumeAnalysisServiceImpl implements IResumeAnalysisService {
                         The job description is: %s
                         Provide the feedback using the following format: %s
                         The resume is: %s
-                        Return the analysis as a JSON object, without any other text and without the backticks.
-                        Do not include any other text or comments.
+                        Your response must be data in JSON format only, without any leading or trailing text before and after the JSON data.
                         """,
                 jobRequest.getRole() != null ? jobRequest.getRole() : "",
                 jobRequest.getJobDescription(),
