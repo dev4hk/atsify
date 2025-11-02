@@ -5,6 +5,7 @@ import com.example.api.rag.PIIMaskingDocumentPostProcessor;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor;
 import org.springframework.ai.rag.advisor.RetrievalAugmentationAdvisor;
+import org.springframework.ai.rag.preretrieval.query.transformation.TranslationQueryTransformer;
 import org.springframework.ai.rag.retrieval.search.VectorStoreDocumentRetriever;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.context.annotation.Bean;
@@ -89,6 +90,12 @@ public class AiConfig {
     @Bean
     RetrievalAugmentationAdvisor retrievalAugmentationAdvisor(VectorStore vectorStore, ChatClient.Builder chatClientBuilder) {
         return RetrievalAugmentationAdvisor.builder()
+                .queryTransformers(
+                        TranslationQueryTransformer.builder()
+                                .chatClientBuilder(chatClientBuilder.clone())
+                                .targetLanguage("english")
+                                .build()
+                )
                 .documentRetriever(
                         VectorStoreDocumentRetriever.builder()
                                 .vectorStore(vectorStore)
